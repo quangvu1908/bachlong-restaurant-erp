@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Chi nhánh / nhà hàng
+model Branch {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockLevels StockLevel[]
+  movements   StockMovement[]
+}
+
+// Danh mục, dùng chung cho nguyên liệu (INGREDIENT) và món ăn (DISH)
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  kind      String // "INGREDIENT" | "DISH"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ingredients Ingredient[]
+  dishes      Dish[]
+
+  @@unique([name, kind])
+}
+
+// Nguyên liệu
+model Ingredient {
+  id         String   @id @default(cuid())
+  name       String
+  unit       String // kg, lít, cái, gói...
+  unitPrice  Float    @default(0)
+  minStock   Float    @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  stockLevels StockLevel[]
+  movements   StockMovement[]
+}
+
+// Món ăn / thực đơn
+model Dish {
+  id         String   @id @default(cuid())
+  name       String
+  price      Float    @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+}
+
+// Tồn kho nguyên liệu theo từng chi nhánh
+model StockLevel {
+  id           String   @id @default(cuid())
+  quantity     Float    @default(0)
+  updatedAt    DateTime @updatedAt
+
+  branchId     String
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, ingredientId])
+}
+
+// Phiếu nhập / xuất kho nguyên liệu theo chi nhánh
+model StockMovement {
+  id        String   @id @default(cuid())
+  type      String // "IN" | "OUT"
+  quantity  Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  branchId     String
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@index([branchId, createdAt])
+  @@index([ingredientId])
+}
